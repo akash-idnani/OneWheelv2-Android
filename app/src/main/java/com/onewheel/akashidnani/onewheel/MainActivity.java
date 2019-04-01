@@ -10,6 +10,7 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Locale;
 import java.util.UUID;
@@ -20,6 +21,10 @@ import io.reactivex.disposables.Disposable;
 import io.reactivex.exceptions.UndeliverableException;
 import io.reactivex.plugins.RxJavaPlugins;
 
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
 import com.polidea.rxandroidble2.NotificationSetupMode;
 import com.polidea.rxandroidble2.RxBleClient;
 import com.polidea.rxandroidble2.RxBleConnection;
@@ -38,6 +43,10 @@ public class MainActivity extends AppCompatActivity {
     public static UUID CHARACTERISTIC_UUID = UUID.fromString("0000FF01-0000-1000-8000-00805F9B34FB");
 
     private AngleView angleView;
+    private LineChart angleChart;
+
+    private int angleIndex = 1;
+    private static int DATA_POINTS_PER_SCREEN = 500;
 
     private RxBleClient bleClient;
     private Observable<RxBleConnection> connectionObservable;
@@ -84,6 +93,15 @@ public class MainActivity extends AppCompatActivity {
     private void initUI() {
         angleView = findViewById(R.id.angleView);
 
+        angleChart = findViewById(R.id.angleChart);
+        angleChart.getAxisLeft().setAxisMinimum(-20);
+        angleChart.getAxisLeft().setAxisMaximum(20);
+
+        LineData lineData = new LineData(
+                new LineDataSet(new ArrayList<>(), "Data")
+        );
+        angleChart.setData(lineData);
+        angleChart.invalidate();
     }
 
     @Override
@@ -161,6 +179,16 @@ public class MainActivity extends AppCompatActivity {
         float yaw = getAngleFromByteArray(angles, 8);
 
         angleView.setAngles(-pitch, roll);
+
+        if (angleIndex > DATA_POINTS_PER_SCREEN) {
+            angleChart.getLineData().getDataSetByIndex(0).removeFirst();
+        }
+
+        angleChart.getLineData().addEntry(new Entry(angleIndex, pitch), 0);
+        angleChart.getLineData().notifyDataChanged();
+        angleChart.notifyDataSetChanged();
+        angleChart.invalidate();
+        angleIndex++;
     }
 
     private void setState(final State newState) {
