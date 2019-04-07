@@ -8,45 +8,34 @@ import android.os.ParcelUuid;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
-import android.util.Log;
+import android.view.View;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Locale;
-import java.util.UUID;
-
-import io.reactivex.Observable;
-import io.reactivex.android.schedulers.AndroidSchedulers;
-import io.reactivex.disposables.Disposable;
-import io.reactivex.exceptions.UndeliverableException;
-import io.reactivex.plugins.RxJavaPlugins;
-
-import com.github.mikephil.charting.charts.LineChart;
-import com.github.mikephil.charting.data.Entry;
-import com.github.mikephil.charting.data.LineData;
-import com.github.mikephil.charting.data.LineDataSet;
 import com.polidea.rxandroidble2.NotificationSetupMode;
 import com.polidea.rxandroidble2.RxBleClient;
 import com.polidea.rxandroidble2.RxBleConnection;
 import com.polidea.rxandroidble2.RxBleDevice;
 import com.polidea.rxandroidble2.exceptions.BleDisconnectedException;
-import com.polidea.rxandroidble2.exceptions.BleException;
 import com.polidea.rxandroidble2.scan.ScanFilter;
 import com.polidea.rxandroidble2.scan.ScanSettings;
 import com.polidea.rxandroidble2.utils.ConnectionSharingAdapter;
 
+import java.util.UUID;
 
-public class MainActivity extends AppCompatActivity {
+import io.reactivex.Observable;
+import io.reactivex.android.schedulers.AndroidSchedulers;
+import io.reactivex.disposables.Disposable;
+import io.reactivex.plugins.RxJavaPlugins;
+
+
+public class MainActivity extends AppCompatActivity
+        implements View.OnClickListener {
 
     public static String DEVICE_MAC_ADDRESS = "24:0A:C4:1C:9E:8E";
     public static ParcelUuid SERVICE_UUID = new ParcelUuid(UUID.fromString("000000FF-0000-1000-8000-00805F9B34FB"));
     public static UUID CHARACTERISTIC_UUID = UUID.fromString("0000FF01-0000-1000-8000-00805F9B34FB");
 
     private AngleView angleView;
-    private LineChart angleChart;
-
-    private int angleIndex = 1;
-    private static int DATA_POINTS_PER_SCREEN = 500;
+    private LiveGraph angleChart;
 
     private RxBleClient bleClient;
     private Observable<RxBleConnection> connectionObservable;
@@ -92,16 +81,25 @@ public class MainActivity extends AppCompatActivity {
 
     private void initUI() {
         angleView = findViewById(R.id.angleView);
+        angleView.setOnClickListener(this);
 
         angleChart = findViewById(R.id.angleChart);
-        angleChart.getAxisLeft().setAxisMinimum(-20);
-        angleChart.getAxisLeft().setAxisMaximum(20);
+        angleChart.setOnClickListener(this);
+    }
 
-        LineData lineData = new LineData(
-                new LineDataSet(new ArrayList<>(), "Data")
-        );
-        angleChart.setData(lineData);
-        angleChart.invalidate();
+    @Override
+    public void onClick(View v) {
+        switch (v.getId()) {
+            case R.id.angleView:
+                angleView.setVisibility(View.GONE);
+                angleChart.setVisibility(View.VISIBLE);
+                break;
+
+            case R.id.angleChart:
+                angleChart.setVisibility(View.GONE);
+                angleView.setVisibility(View.VISIBLE);
+                break;
+        }
     }
 
     @Override
@@ -178,17 +176,8 @@ public class MainActivity extends AppCompatActivity {
         float roll = getAngleFromByteArray(angles, 4);
         float yaw = getAngleFromByteArray(angles, 8);
 
-        angleView.setAngles(-pitch, roll);
-
-        if (angleIndex > DATA_POINTS_PER_SCREEN) {
-            angleChart.getLineData().getDataSetByIndex(0).removeFirst();
-        }
-
-        angleChart.getLineData().addEntry(new Entry(angleIndex, pitch), 0);
-        angleChart.getLineData().notifyDataChanged();
-        angleChart.notifyDataSetChanged();
-        angleChart.invalidate();
-        angleIndex++;
+        angleView.setAngles(-roll, -pitch);
+        angleChart.addDataPoint(-roll);
     }
 
     private void setState(final State newState) {
