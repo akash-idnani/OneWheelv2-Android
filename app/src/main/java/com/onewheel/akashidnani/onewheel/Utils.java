@@ -8,6 +8,7 @@ import com.polidea.rxandroidble2.RxBleConnection;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
@@ -20,10 +21,11 @@ public class Utils {
     }
 
     @SuppressLint("CheckResult")
-    public static void sendCommand(Observable<RxBleConnection> connectionObservable, byte command, ErrorHandler errorHandler) {
+    public static void sendData(Observable<RxBleConnection> connectionObservable,
+                                UUID charUUID, byte[] data, ErrorHandler errorHandler) {
         if (connectionObservable == null) return;
         connectionObservable
-                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(ANGLES_CHARACTERISTIC_UUID, new byte[]{command, 10}))
+                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(charUUID, data))
                 .take(1)
                 .subscribe(
                         characteristicValue -> {
@@ -32,21 +34,6 @@ public class Utils {
                         errorHandler::onError
                 );
 
-    }
-
-    @SuppressLint("CheckResult")
-    public static void sendCommand(Observable<RxBleConnection> connectionObservable, byte command, byte value, ErrorHandler errorHandler) {
-        if (connectionObservable == null) return;
-
-        connectionObservable
-                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(ANGLES_CHARACTERISTIC_UUID, new byte[]{command, value, 10}))
-                .take(1)
-                .subscribe(
-                        characteristicValue -> {
-                            Log.i("write", Arrays.toString(characteristicValue));
-                        },
-                        errorHandler::onError
-                );
     }
 
     public static void addActiveSubscription(Disposable sub) {

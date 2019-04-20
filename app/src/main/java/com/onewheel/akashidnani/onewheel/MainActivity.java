@@ -11,7 +11,10 @@ import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.View;
+import android.widget.NumberPicker;
+import android.widget.TextView;
 
+import com.akexorcist.roundcornerprogressbar.RoundCornerProgressBar;
 import com.polidea.rxandroidble2.NotificationSetupMode;
 import com.polidea.rxandroidble2.RxBleClient;
 import com.polidea.rxandroidble2.RxBleConnection;
@@ -21,6 +24,7 @@ import com.polidea.rxandroidble2.scan.ScanFilter;
 import com.polidea.rxandroidble2.scan.ScanSettings;
 import com.polidea.rxandroidble2.utils.ConnectionSharingAdapter;
 
+import java.util.Locale;
 import java.util.UUID;
 
 import io.reactivex.Observable;
@@ -36,9 +40,18 @@ public class MainActivity extends AppCompatActivity
     public static ParcelUuid SERVICE_UUID = new ParcelUuid(UUID.fromString("000000FF-0000-1000-8000-00805F9B34FB"));
     public static UUID ANGLES_CHARACTERISTIC_UUID = UUID.fromString("0000FF01-0000-1000-8000-00805F9B34FB");
     public static UUID PID_CHARACTERISTIC_UUID = UUID.fromString("0000FF02-0000-1000-8000-00805F9B34FB");
+    public static UUID INFO_CHARACTERISTIC_UUID = UUID.fromString("0000FF03-0000-1000-8000-00805F9B34FB");
 
     private AngleView angleView;
     private LiveGraph angleChart;
+
+    private RoundCornerProgressBar motorOutBar;
+    private TextView motorOutText;
+
+    private NumberPicker propPicker;
+    private NumberPicker integralPicker;
+    private NumberPicker derivPicker;
+    private NumberPicker[] pickers;
 
     private RxBleClient bleClient;
     private Observable<RxBleConnection> connectionObservable;
@@ -88,6 +101,23 @@ public class MainActivity extends AppCompatActivity
 
         angleChart = findViewById(R.id.angleChart);
         angleChart.setOnClickListener(this);
+
+        motorOutBar = findViewById(R.id.motorOutBar);
+        motorOutText = findViewById(R.id.motorOutText);
+
+        propPicker = findViewById(R.id.propPicker);
+        integralPicker = findViewById(R.id.integralPicker);
+        derivPicker = findViewById(R.id.derivPicker);
+
+        pickers = new NumberPicker[]{propPicker, integralPicker, derivPicker};
+
+        for (NumberPicker np : pickers) {
+            np.setMinValue(0);
+            np.setMaxValue(65000);
+            np.setWrapSelectorWheel(false);
+            np.setEnabled(false);
+            np.setOnValueChangedListener((picker, oldVal, newVal) -> sendPID());
+        }
     }
 
     @Override
@@ -160,18 +190,30 @@ public class MainActivity extends AppCompatActivity
                 .observeOn(AndroidSchedulers.mainThread())
                 .doOnTerminate(() -> setState(State.Discovering))
                 .subscribe(
-                        this::onReceive,
+                        this::onReceiveAngles,
                         throwable -> errorHandler.onError(throwable)
                 ));
 
-        connectionObservable
+        Utils.addActiveSubscription(connectionObservable
+                .flatMap(rxBleConnection -> rxBleConnection.setupNotification(INFO_CHARACTERISTIC_UUID, NotificationSetupMode.COMPAT))
+                .doOnNext(notificationObservable -> {
+                    setState(State.Connected);
+                    scanSubscription.dispose();
+                })
+                .flatMap(notificationObservable -> notificationObservable) // <-- Notification has been set up, now observe value changes.
+                .observeOn(AndroidSchedulers.mainThread())
+                .doOnTerminate(() -> setState(State.Discovering))
+                .subscribe(
+                        this::onReceiveInfo,
+                        throwable -> errorHandler.onError(throwable)
+                ));
+
+        Utils.addActiveSubscription(connectionObservable
                 .flatMapSingle(rxBleConnection -> rxBleConnection.readCharacteristic(PID_CHARACTERISTIC_UUID))
                 .subscribe(
-                        characteristicValue -> {
-                            Log.i("test", "test");
-                        },
+                        pidValues -> runOnUiThread(() -> onReceiverPID(pidValues)),
                         throwable -> errorHandler.onError(throwable)
-                );
+                ));
     }
 
     private float getAngleFromByteArray(byte[] arr, int startIdx) {
@@ -183,7 +225,7 @@ public class MainActivity extends AppCompatActivity
         return value / 65536.f;
     }
 
-    private void onReceive(byte[] angles) {
+    private void onReceiveAngles(byte[] angles) {
 
         float pitch = getAngleFromByteArray(angles, 0);
         float roll = getAngleFromByteArray(angles, 4);
@@ -193,11 +235,32 @@ public class MainActivity extends AppCompatActivity
         angleChart.addDataPoint(-roll);
     }
 
+    private void onReceiveInfo(byte[] info) {
+        motorOutBar.setProgress(info[0] & 0xFF);
+        if (info[1] != 0) {
+            motorOutBar.setProgressColor(getResources().getColor(R.color.motorRed));
+            motorOutText.setText(String.format(Locale.US, "-%d", info[0] & 0xFF));
+        } else {
+            motorOutBar.setProgressColor(getResources().getColor(R.color.motorGreen));
+            motorOutText.setText(String.format(Locale.US, "+%d", info[0] & 0xFF));
+        }
+
+    }
+
+    private void onReceiverPID(byte[] gains) {
+        for (NumberPicker np : pickers) np.setEnabled(true);
+
+        propPicker.setValue((gains[0] << 8) | gains[1]);
+        integralPicker.setValue((gains[2] << 8) | gains[3]);
+        derivPicker.setValue((gains[4] << 8) | gains[5]);
+    }
+
     private void setState(final State newState) {
 
         runOnUiThread(() -> {
             if (newState == State.Discovering) {
                 if (state == State.Discovering) return;
+                for (NumberPicker np : pickers) np.setEnabled(false);
                 startScanning();
 
             } else if (newState == State.Connected) {
@@ -207,11 +270,17 @@ public class MainActivity extends AppCompatActivity
         });
     }
 
-    public void sendCommand(byte command) {
-        Utils.sendCommand(connectionObservable, command, errorHandler);
-    }
-
-    public void sendCommand(byte command, byte value) {
-        Utils.sendCommand(connectionObservable, command, value, errorHandler);
+    public void sendPID() {
+        Utils.sendData(connectionObservable, PID_CHARACTERISTIC_UUID,
+                new byte[]{
+                        (byte) (propPicker.getValue() >> 8),
+                        (byte) (propPicker.getValue() & 0xFF),
+                        (byte) (integralPicker.getValue() >> 8),
+                        (byte) (integralPicker.getValue() & 0xFF),
+                        (byte) (derivPicker.getValue() >> 8),
+                        (byte) (derivPicker.getValue() & 0xFF),
+                },
+                errorHandler
+        );
     }
 }

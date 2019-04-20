@@ -19,5 +19,80 @@
         android:layout_height="200dp"
         android:layout_margin="16dp" />
 
+    <com.akexorcist.roundcornerprogressbar.RoundCornerProgressBar
+        android:id="@+id/motorOutBar"
+        android:layout_width="120dp"
+        android:layout_height="32dp"
+        android:layout_marginStart="32dp"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/integralPicker"
+        app:rcProgressColor="#69e600"
+        app:rcBackgroundColor="#BDBDBD"
+        app:rcProgress="100"
+        app:rcMax="255"
+        app:rcRadius="4dp"
+        app:rcBackgroundPadding="2dp"/>
+
+    <TextView
+        android:id="@+id/motorOutText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        app:layout_constraintLeft_toRightOf="@+id/motorOutBar"
+        app:layout_constraintTop_toTopOf="@+id/motorOutBar"
+        app:layout_constraintBottom_toBottomOf="@+id/motorOutBar"
+        android:text="0.0" />
+
+    <NumberPicker
+        android:id="@+id/integralPicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginTop="250dp" />
+
+    <TextView
+        android:id="@+id/integralText"
+        android:text="Integral"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        app:layout_constraintLeft_toLeftOf="@+id/integralPicker"
+        app:layout_constraintRight_toRightOf="@+id/integralPicker"
+        app:layout_constraintTop_toBottomOf="@+id/integralPicker"/>
+
+    <NumberPicker
+        android:id="@+id/propPicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintRight_toLeftOf="@+id/integralPicker"
+        app:layout_constraintTop_toTopOf="@+id/integralPicker" />
+
+    <TextView
+        android:text="Proportional"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintLeft_toLeftOf="@+id/propPicker"
+        app:layout_constraintRight_toRightOf="@+id/propPicker"
+        app:layout_constraintTop_toTopOf="@+id/integralText"/>
+
+    <NumberPicker
+        android:id="@+id/derivPicker"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintLeft_toRightOf="@+id/integralPicker"
+        app:layout_constraintRight_toRightOf="parent"
+        app:layout_constraintTop_toTopOf="@+id/integralPicker" />
+
+    <TextView
+        android:text="Derivative"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:layout_constraintLeft_toLeftOf="@+id/derivPicker"
+        app:layout_constraintRight_toRightOf="@+id/derivPicker"
+        app:layout_constraintTop_toTopOf="@+id/integralText"/>
+
 
 </android.support.constraint.ConstraintLayout>
