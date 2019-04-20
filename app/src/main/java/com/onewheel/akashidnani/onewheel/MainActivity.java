@@ -1,6 +1,7 @@
 package com.onewheel.akashidnani.onewheel;
 
 import android.Manifest;
+import android.annotation.SuppressLint;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -8,6 +9,7 @@ import android.os.ParcelUuid;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
+import android.util.Log;
 import android.view.View;
 
 import com.polidea.rxandroidble2.NotificationSetupMode;
@@ -32,7 +34,8 @@ public class MainActivity extends AppCompatActivity
 
     public static String DEVICE_MAC_ADDRESS = "24:0A:C4:1C:9E:8E";
     public static ParcelUuid SERVICE_UUID = new ParcelUuid(UUID.fromString("000000FF-0000-1000-8000-00805F9B34FB"));
-    public static UUID CHARACTERISTIC_UUID = UUID.fromString("0000FF01-0000-1000-8000-00805F9B34FB");
+    public static UUID ANGLES_CHARACTERISTIC_UUID = UUID.fromString("0000FF01-0000-1000-8000-00805F9B34FB");
+    public static UUID PID_CHARACTERISTIC_UUID = UUID.fromString("0000FF02-0000-1000-8000-00805F9B34FB");
 
     private AngleView angleView;
     private LiveGraph angleChart;
@@ -140,6 +143,7 @@ public class MainActivity extends AppCompatActivity
                 );
     }
 
+    @SuppressLint("CheckResult")
     private void connect(RxBleDevice device) {
 
         connectionObservable = device.establishConnection(false).
@@ -147,7 +151,7 @@ public class MainActivity extends AppCompatActivity
                 compose(new ConnectionSharingAdapter());
 
         Utils.addActiveSubscription(connectionObservable
-                .flatMap(rxBleConnection -> rxBleConnection.setupNotification(CHARACTERISTIC_UUID, NotificationSetupMode.COMPAT))
+                .flatMap(rxBleConnection -> rxBleConnection.setupNotification(ANGLES_CHARACTERISTIC_UUID, NotificationSetupMode.COMPAT))
                 .doOnNext(notificationObservable -> {
                     setState(State.Connected);
                     scanSubscription.dispose();
@@ -159,6 +163,15 @@ public class MainActivity extends AppCompatActivity
                         this::onReceive,
                         throwable -> errorHandler.onError(throwable)
                 ));
+
+        connectionObservable
+                .flatMapSingle(rxBleConnection -> rxBleConnection.readCharacteristic(PID_CHARACTERISTIC_UUID))
+                .subscribe(
+                        characteristicValue -> {
+                            Log.i("test", "test");
+                        },
+                        throwable -> errorHandler.onError(throwable)
+                );
     }
 
     private float getAngleFromByteArray(byte[] arr, int startIdx) {

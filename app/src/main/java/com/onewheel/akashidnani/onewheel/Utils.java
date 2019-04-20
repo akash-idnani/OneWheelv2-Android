@@ -12,7 +12,7 @@ import java.util.List;
 import io.reactivex.Observable;
 import io.reactivex.disposables.Disposable;
 
-import static com.onewheel.akashidnani.onewheel.MainActivity.CHARACTERISTIC_UUID;
+import static com.onewheel.akashidnani.onewheel.MainActivity.ANGLES_CHARACTERISTIC_UUID;
 
 public class Utils {
     public static byte boolToByte(boolean b) {
@@ -23,7 +23,7 @@ public class Utils {
     public static void sendCommand(Observable<RxBleConnection> connectionObservable, byte command, ErrorHandler errorHandler) {
         if (connectionObservable == null) return;
         connectionObservable
-                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(CHARACTERISTIC_UUID, new byte[]{command, 10}))
+                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(ANGLES_CHARACTERISTIC_UUID, new byte[]{command, 10}))
                 .take(1)
                 .subscribe(
                         characteristicValue -> {
@@ -39,7 +39,7 @@ public class Utils {
         if (connectionObservable == null) return;
 
         connectionObservable
-                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(CHARACTERISTIC_UUID, new byte[]{command, value, 10}))
+                .flatMapSingle(rxBleConnection -> rxBleConnection.writeCharacteristic(ANGLES_CHARACTERISTIC_UUID, new byte[]{command, value, 10}))
                 .take(1)
                 .subscribe(
                         characteristicValue -> {
